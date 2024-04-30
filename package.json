@@ -24,6 +24,10 @@
     }
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CrossCopy/magic-wormhole-napi.git"
+  },
   "devDependencies": {
     "@napi-rs/cli": "^2.18.2",
     "ava": "^6.0.1"
