@@ -86,6 +86,8 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
       - name: Setup node
         uses: actions/setup-node@v4
         if: ${{ !matrix.settings.docker }}
@@ -151,6 +153,8 @@ jobs:
     name: Build FreeBSD
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
       - name: Build
         id: build
         uses: cross-platform-actions/action@v0.24.0
@@ -211,6 +215,8 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -241,6 +247,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -271,6 +279,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -303,6 +313,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -337,6 +349,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -376,6 +390,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -409,6 +425,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -448,6 +466,8 @@ jobs:
       - universal-macOS
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
       - name: Setup node
         uses: actions/setup-node@v4
         with:
