@@ -36,3 +36,7 @@ impl From<magic_wormhole::forwarding::ForwardingError> for NapiError {
 pub fn convert_to_napi_error(err: impl ToString) -> napi::Error {
     napi::Error::new(napi::Status::GenericFailure, err.to_string())
 }
+
+pub fn generic_napi_err(errmsg: &str) -> napi::Error {
+    napi::Error::new(napi::Status::GenericFailure, errmsg)
+}
