@@ -62,3 +62,5 @@ bun receive.ts 1-nice-idea
 npm version patch
 git push --follow-tags
 ```
+
+A normal commit won't trigger publish. `git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$"` is used to check if the commit message is a version number. So always add a tag to the commit or have the pattern in the commit message.
