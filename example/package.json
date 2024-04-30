@@ -1,0 +1,16 @@
+{
+  "name": "example",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/cli-progress": "^3.11.5"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@crosscopy/clipboard": "^0.2.6",
+    "cli-progress": "^3.12.0"
+  }
+}

@@ -33,7 +33,7 @@ arboard = { version = "3.2.0", features = [
 ] } # Wayland by default, fallback to X11.
 
 # Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
-napi = { version = "2.12.2", default-features = false, features = ["napi4", "async", "tokio_rt"] }
+napi = { version = "2.12.2", default-features = false, features = ["napi4", "napi6", "async", "tokio_rt"] }
 napi-derive = "2.12.2"
 
 [build-dependencies]

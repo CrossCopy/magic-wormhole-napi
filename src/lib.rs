@@ -4,13 +4,19 @@
 #[macro_use]
 extern crate napi_derive;
 
-use std::{path::PathBuf, sync::Arc};
-
 use color_eyre::eyre::{self, Context};
 use futures::FutureExt;
 use indicatif::ProgressBar;
 use magic_wormhole::{transfer, transit, MailboxConnection, Wormhole};
-use napi::Result;
+use napi::{
+  bindgen_prelude::*,
+  threadsafe_function::{
+    ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode, UnknownReturnValue,
+  },
+  JsString,
+};
+use std::{path::PathBuf, sync::Arc};
+use std::{thread, time::Duration};
 
 mod error;
 mod util;
@@ -33,73 +39,22 @@ fn hello_world() -> String {
 // 	}
 // }
 
-fn create_progress_bar(file_size: u64) -> ProgressBar {
-  use indicatif::ProgressStyle;
-
-  let pb = ProgressBar::new(file_size);
-  pb.set_style(
-    ProgressStyle::default_bar()
-      // .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
-      .template("[{elapsed_precise}] [{wide_bar}] {bytes}/{total_bytes} ({eta})")
-      .unwrap()
-      .progress_chars("#>-"),
-  );
-  pb
-}
-
-fn create_progress_handler(pb: ProgressBar) -> impl FnMut(u64, u64) {
-  move |sent, total| {
-    if sent == 0 {
-      pb.reset_elapsed();
-      pb.set_length(total);
-      pb.enable_steady_tick(std::time::Duration::from_millis(250));
-    }
-    pb.set_position(sent);
-  }
-}
-
-fn install_ctrlc_handler(
-) -> eyre::Result<impl Fn() -> futures::future::BoxFuture<'static, ()> + Clone> {
-  use async_std::sync::{Condvar, Mutex};
-
-  let notifier = Arc::new((Mutex::new(false), Condvar::new()));
-
-  /* Register the handler */
-  let notifier2 = notifier.clone();
-  ctrlc::set_handler(move || {
-    futures::executor::block_on(async {
-      let mut has_notified = notifier2.0.lock().await;
-      if *has_notified {
-        /* Second signal. Exit */
-        log::debug!("Exit.");
-        std::process::exit(130);
-      }
-      /* First signal. */
-      log::info!("Got Ctrl-C event. Press again to exit immediately");
-      *has_notified = true;
-      notifier2.1.notify_all();
-    })
-  })
-  .context("Error setting Ctrl-C handler")?;
-
-  Ok(move || {
-    /* Transform the notification into a future that waits */
-    let notifier = notifier.clone();
-    async move {
-      let (lock, cvar) = &*notifier;
-      let mut started = lock.lock().await;
-      while !*started {
-        started = cvar.wait(started).await;
-      }
-    }
-    .boxed()
-  })
+#[napi(object)]
+pub struct ProgressHandlerPayload {
+  pub sent: BigInt,
+  pub total: BigInt,
 }
 
 #[napi]
-async fn send(filepath: String) -> Result<String> {
-  let ctrl_c = install_ctrlc_handler().map_err(convert_to_napi_error)?;
+async fn send(
+  filepath: String,
+  code_callback: ThreadsafeFunction<String>,
+  start_callback: ThreadsafeFunction<BigInt>,
+  progress_callback: ThreadsafeFunction<ProgressHandlerPayload>,
+) -> Result<()> {
+  let ctrl_c = util::install_ctrlc_handler().map_err(convert_to_napi_error)?;
   let path = PathBuf::from(filepath);
+  let filesize = std::fs::metadata(path.clone()).unwrap().len();
   let offer = transfer::OfferSend::new_paths(vec![path]).await?;
   let relay_hints: Vec<transit::RelayHint> = vec![transit::RelayHint::from_urls(
     None,
@@ -113,29 +68,55 @@ async fn send(filepath: String) -> Result<String> {
     .await
     .map_err(convert_to_napi_error)?;
   let code = mailbox_connection.code.clone();
-	println!("code: {:?}", code.0);
+  code_callback.call(Ok(code.0), ThreadsafeFunctionCallMode::NonBlocking);
   let wormhole = Wormhole::connect(mailbox_connection)
     .await
     .map_err(convert_to_napi_error)?;
 
   let transit_abilities = transit::Abilities::ALL_ABILITIES;
-  // progress_handler: impl FnMut(u64, u64) + 'static,
-  // cancel: impl Future<Output = ()>,
-  let pb = create_progress_bar(0);
-  let pb2 = pb.clone();
+  let progress_handler = move |sent, total| {
+    progress_callback.call(
+      Ok(ProgressHandlerPayload {
+        sent: BigInt::from(sent),
+        total: BigInt::from(total),
+      }),
+      ThreadsafeFunctionCallMode::NonBlocking,
+    );
+  };
+  start_callback.call(
+    Ok(BigInt::from(filesize)),
+    ThreadsafeFunctionCallMode::NonBlocking,
+  );
   transfer::send(
     wormhole,
     relay_hints,
     transit_abilities,
     offer,
     &transit::log_transit_connection,
-    create_progress_handler(pb),
+    progress_handler,
+    // util::create_progress_handler(pb),
     ctrl_c(),
   )
   .await
   .context("Send process failed")
   .map_err(convert_to_napi_error)?;
-  pb2.finish();
+  // pb2.finish();
 
-  Ok(code.0)
+  Ok(())
+}
+
+#[napi]
+async fn receive(code: String, output_dir: String) -> Result<()> {
+  Ok(())
+}
+
+#[napi]
+pub fn call_threadsafe_function(tsfn: ThreadsafeFunction<u32>) -> Result<()> {
+  for n in 0..100 {
+    let tsfn = tsfn.clone();
+    thread::spawn(move || {
+      tsfn.call(Ok(n), ThreadsafeFunctionCallMode::NonBlocking);
+    });
+  }
+  Ok(())
 }

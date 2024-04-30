@@ -310,7 +310,9 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { helloWorld, send } = nativeBinding
+const { helloWorld, send, receive, callThreadsafeFunction } = nativeBinding
 
 module.exports.helloWorld = helloWorld
 module.exports.send = send
+module.exports.receive = receive
+module.exports.callThreadsafeFunction = callThreadsafeFunction
