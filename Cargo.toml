@@ -7,8 +7,33 @@ version = "0.0.0"
 crate-type = ["cdylib"]
 
 [dependencies]
+serde = { version = "1.0.120", features = ["rc"] }
+serde_json = "1.0.61"
+serde_derive = "1.0.120"
+log = "0.4.13"
+url = { version = "2.2.2", features = ["serde"] }
+futures = "0.3.12"
+async-std = { version = "1.12.0", features = ["attributes", "unstable"] }
+rand = "0.8.3"
+
+# CLI specific dependencies
+magic-wormhole = { path = "magic-wormhole.rs", features = ["all"] }
+clap = { version = "3.1.5", features = ["cargo", "derive", "wrap_help"] }
+clap_complete = "3.1.4"
+env_logger = "0.11"
+console = "0.15.0"
+indicatif = "0.17.0"
+dialoguer = "0.11"
+color-eyre = "0.6.0"
+number_prefix = "0.4.0"
+ctrlc = "3.2.1"
+qr2term = "0.3.0"
+arboard = { version = "3.2.0", features = [
+    "wayland-data-control",
+] } # Wayland by default, fallback to X11.
+
 # Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
-napi = { version = "2.12.2", default-features = false, features = ["napi4"] }
+napi = { version = "2.12.2", default-features = false, features = ["napi4", "napi6", "async", "tokio_rt"] }
 napi-derive = "2.12.2"
 
 [build-dependencies]
