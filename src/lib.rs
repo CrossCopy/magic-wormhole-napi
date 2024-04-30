@@ -22,6 +22,8 @@ use indicatif::{MultiProgress, ProgressBar};
 use std::{io::Write, path::PathBuf};
 
 use magic_wormhole::{forwarding, transfer, transit, MailboxConnection, Wormhole};
+mod error;
+use error::{convert_to_napi_error, NapiError};
 
 fn install_ctrlc_handler(
 ) -> eyre::Result<impl Fn() -> futures::future::BoxFuture<'static, ()> + Clone> {
@@ -263,42 +265,11 @@ struct WormholeCli {
   command: WormholeCommand,
 }
 
-// #[napi]
-// async fn run2() -> napi::Result<()> {
-//     Ok(())
-// }
-use eyre::ErrReport;
-use napi::Error;
-
-pub struct NapiError(napi::Error);
-
-impl NapiError {
-  pub fn into_inner(self) -> napi::Error {
-    self.0
-  }
-}
-
-impl From<ErrReport> for NapiError {
-  fn from(err: ErrReport) -> Self {
-    NapiError(napi::Error::new(
-      napi::Status::GenericFailure,
-      format!("Error: {}", err),
-    ))
-  }
-}
-
-// impl From<ErrReport> for napi::Error {
-//   fn from(err: ErrReport) -> Self {
-//     // You can provide a custom conversion here. For example:
-//     napi::Error::new(napi::Status::GenericFailure, format!("Error: {}", err))
-//   }
-// }
-
 // #[async_std::main]
-#[napi]
+// #[napi]
 async fn run() -> napi::Result<()> {
-  color_eyre::install()?;
-  let ctrl_c = install_ctrlc_handler()?;
+  color_eyre::install().map_err(convert_to_napi_error)?;
+  let ctrl_c = install_ctrlc_handler().map_err(convert_to_napi_error)?;
   let app = WormholeCli::parse();
   let mut term = Term::stdout();
 
@@ -308,7 +279,8 @@ async fn run() -> napi::Result<()> {
       .filter_module("magic_wormhole::core", log::LevelFilter::Trace)
       .filter_module("mio", log::LevelFilter::Debug)
       .filter_module("ws", log::LevelFilter::Error)
-      .try_init()?;
+      .try_init()
+      .map_err(convert_to_napi_error)?;
     log::debug!("Logging enabled.");
   } else {
     env_logger::builder()
@@ -316,7 +288,8 @@ async fn run() -> napi::Result<()> {
       .filter_module("ws", log::LevelFilter::Error)
       .format_timestamp(None)
       .format_target(false)
-      .try_init()?;
+      .try_init()
+      .map_err(convert_to_napi_error)?;
   }
 
   let mut clipboard = Clipboard::new()
@@ -332,7 +305,9 @@ async fn run() -> napi::Result<()> {
       common_send: CommonSenderArgs { file_name, files },
       ..
     } => {
-      let offer = make_send_offer(files, file_name).await?;
+      let offer = make_send_offer(files, file_name)
+        .await
+        .map_err(convert_to_napi_error)?;
 
       let transit_abilities = parse_transit_args(&common);
       let (wormhole, _code, relay_hints) = match util::cancellable(
@@ -350,7 +325,7 @@ async fn run() -> napi::Result<()> {
       )
       .await
       {
-        Ok(result) => result?,
+        Ok(result) => result.map_err(convert_to_napi_error)?,
         Err(_) => return Ok(()),
       };
 
@@ -361,7 +336,8 @@ async fn run() -> napi::Result<()> {
         transit_abilities,
         ctrl_c.clone(),
       ))
-      .await?;
+      .await
+      .map_err(convert_to_napi_error)?;
     }
     #[allow(unused_variables)]
     WormholeCommand::SendMany {
@@ -385,7 +361,7 @@ async fn run() -> napi::Result<()> {
           clipboard.as_mut(),
         ));
         match futures::future::select(connect_fut, ctrl_c()).await {
-          Either::Left((result, _)) => result?,
+          Either::Left((result, _)) => result.map_err(convert_to_napi_error)?,
           Either::Right(((), _)) => return Ok(()),
         }
       };
@@ -403,7 +379,8 @@ async fn run() -> napi::Result<()> {
         transit_abilities,
         ctrl_c,
       ))
-      .await?;
+      .await
+      .map_err(convert_to_napi_error)?;
     }
     WormholeCommand::Receive {
       noconfirm,
@@ -425,7 +402,7 @@ async fn run() -> napi::Result<()> {
           clipboard.as_mut(),
         ));
         match futures::future::select(connect_fut, ctrl_c()).await {
-          Either::Left((result, _)) => result?,
+          Either::Left((result, _)) => result.map_err(convert_to_napi_error)?,
           Either::Right(((), _)) => return Ok(()),
         }
       };
@@ -438,7 +415,8 @@ async fn run() -> napi::Result<()> {
         transit_abilities,
         ctrl_c,
       ))
-      .await?;
+      .await
+      .map_err(convert_to_napi_error)?;
     }
     WormholeCommand::Forward(ForwardCommand::Serve {
       targets,
@@ -484,7 +462,8 @@ async fn run() -> napi::Result<()> {
             target
           ))
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(convert_to_napi_error)?;
       loop {
         let mut app_config = forwarding::APP_CONFIG;
         app_config.app_version.transit_abilities = parse_transit_args(&common);
@@ -500,7 +479,7 @@ async fn run() -> napi::Result<()> {
         ));
         let (wormhole, _code, relay_hints) =
           match futures::future::select(connect_fut, ctrl_c()).await {
-            Either::Left((result, _)) => result?,
+            Either::Left((result, _)) => result.map_err(convert_to_napi_error)?,
             Either::Right(((), _)) => break,
           };
         async_std::task::spawn(forwarding::serve(
@@ -534,7 +513,8 @@ async fn run() -> napi::Result<()> {
         None,
         clipboard.as_mut(),
       )
-      .await?;
+      .await
+      .map_err(convert_to_napi_error)?;
 
       let offer = forwarding::connect(
         wormhole,
@@ -543,16 +523,20 @@ async fn run() -> napi::Result<()> {
         Some(bind_address),
         &ports,
       )
-      .await?;
+      .await
+      .map_err(convert_to_napi_error)?;
       log::info!("Mapping the following open ports to targets:");
       log::info!("  local port -> remote target (no address = localhost on remote)");
       for (port, target) in &offer.mapping {
         log::info!("  {} -> {}", port, target);
       }
       if noconfirm || util::ask_user("Accept forwarded ports?", true).await {
-        offer.accept(ctrl_c()).await?;
+        offer
+          .accept(ctrl_c())
+          .await
+          .map_err(convert_to_napi_error)?;
       } else {
-        offer.reject().await?;
+        offer.reject().await.map_err(convert_to_napi_error)?;
       }
     }
     WormholeCommand::Completion { shell } => {
@@ -574,7 +558,9 @@ async fn run() -> napi::Result<()> {
                         out,
                     );
 
-          std::io::stdout().write_all(out.as_bytes())?;
+          std::io::stdout()
+            .write_all(out.as_bytes())
+            .map_err(convert_to_napi_error)?;
         }
         shell => {
           let mut out = std::io::stdout();
