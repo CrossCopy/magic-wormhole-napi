@@ -55,3 +55,10 @@ There is a [sent.ts](./example/send.ts) and [receive.ts](./example/receive.ts) e
 bun send.ts ~/Desktop/video.mp4
 bun receive.ts 1-nice-idea
 ```
+
+## Publish
+
+```bash
+npm version patch
+git push --follow-tags
+```
