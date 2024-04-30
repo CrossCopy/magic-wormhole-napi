@@ -9,5 +9,5 @@ export interface ProgressHandlerPayload {
   total: bigint
 }
 export function send(filepath: string, codeCallback: (err: Error | null, arg: string) => any, startCallback: (err: Error | null, arg: bigint) => any, progressCallback: (err: Error | null, arg: ProgressHandlerPayload) => any): Promise<void>
-export function receive(code: string, outputDir: string): Promise<void>
+export function receive(code: string, outputDir: string, startCallback: (err: Error | null, arg: bigint) => any, progressCallback: (err: Error | null, arg: ProgressHandlerPayload) => any): Promise<void>
 export function callThreadsafeFunction(tsfn: (err: Error | null, arg: number) => any): void

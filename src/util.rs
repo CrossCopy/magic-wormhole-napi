@@ -4,6 +4,7 @@ use async_std::{io, io::prelude::*};
 use color_eyre::eyre::{self, Context};
 use futures::{Future, FutureExt};
 use indicatif::ProgressBar;
+use magic_wormhole::{transfer, transit};
 
 pub async fn ask_user(message: impl std::fmt::Display, default_answer: bool) -> bool {
   let message = format!(

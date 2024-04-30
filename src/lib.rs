@@ -17,13 +17,10 @@ use napi::{
 };
 use std::{path::PathBuf, sync::Arc};
 use std::{thread, time::Duration};
-
 mod error;
 mod util;
-
-use error::generic_napi_err;
-
 use crate::error::convert_to_napi_error;
+use error::generic_napi_err;
 
 #[napi]
 fn hello_world() -> String {
@@ -106,7 +103,77 @@ async fn send(
 }
 
 #[napi]
-async fn receive(code: String, output_dir: String) -> Result<()> {
+async fn receive(
+  code: String,
+  output_dir: String,
+  start_callback: ThreadsafeFunction<BigInt>,
+  progress_callback: ThreadsafeFunction<ProgressHandlerPayload>,
+) -> Result<()> {
+  let out_path = PathBuf::from(output_dir);
+  let transit_abilities = transit::Abilities::ALL_ABILITIES;
+  let code: magic_wormhole::Code = magic_wormhole::Code(code);
+  let app_config = transfer::APP_CONFIG;
+  let mailbox_connection = MailboxConnection::connect(app_config, code, true)
+    .await
+    .map_err(convert_to_napi_error)?;
+  let wormhole = Wormhole::connect(mailbox_connection)
+    .await
+    .map_err(convert_to_napi_error)?;
+  let relay_hints: Vec<transit::RelayHint> = vec![transit::RelayHint::from_urls(
+    None,
+    [magic_wormhole::transit::DEFAULT_RELAY_SERVER
+      .parse()
+      .unwrap()],
+  )
+  .map_err(convert_to_napi_error)?];
+  let ctrl_c = util::install_ctrlc_handler().map_err(convert_to_napi_error)?;
+  let req = transfer::request(wormhole, relay_hints, transit_abilities, ctrl_c())
+    .await
+    .context("Could not get an offer")
+    .map_err(convert_to_napi_error)?;
+  // turn out_path into &std::path::Path
+  let target_dir = out_path.as_path();
+  let progress_handler = move |sent, total| {
+    progress_callback.call(
+      Ok(ProgressHandlerPayload {
+        sent: BigInt::from(sent),
+        total: BigInt::from(total),
+      }),
+      ThreadsafeFunctionCallMode::NonBlocking,
+    );
+  };
+  let _: Result<()> = match req {
+    Some(transfer::ReceiveRequest::V1(req)) => {
+      // receive_inner_v1(req, target_dir, no_confirm, ctrl_c).await
+      let file_path = std::path::Path::new(target_dir).join(&req.filename);
+      let mut file = async_std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&file_path)
+        .await?;
+      start_callback.call(
+        Ok(BigInt::from(req.filesize)),
+        ThreadsafeFunctionCallMode::NonBlocking,
+      );
+      req
+        .accept(
+          &transit::log_transit_connection,
+          &mut file,
+          //   create_progress_handler(pb),
+          progress_handler,
+          ctrl_c(),
+        )
+        .await
+        .context("Receive process failed")
+        .map_err(convert_to_napi_error)?;
+      Ok(())
+    }
+    Some(transfer::ReceiveRequest::V2(req)) => {
+      todo!("V2 is not implemented yet")
+      // receive_inner_v2(req, target_dir, no_confirm, ctrl_c).await
+    }
+    None => Ok(()),
+  };
   Ok(())
 }
 
