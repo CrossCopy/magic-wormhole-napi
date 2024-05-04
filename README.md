@@ -1,8 +1,17 @@
 # magic-wormhole-napi
 
+<div>
+  <a href="https://github.com/CrossCopy/magic-wormhole-napi/actions/workflows/CI.yml"><img alt="CI Badge" src="https://github.com/CrossCopy/magic-wormhole-napi/actions/workflows/CI.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/magic-wormhole-napi"><img alt="NPM Downloads" src="https://img.shields.io/npm/v/magic-wormhole-napi"></a>
+  
+  <a href="https://www.npmjs.com/package/magic-wormhole-napi"><img alt="NPM Downloads" src="https://img.shields.io/npm/dm/magic-wormhole-napi"></a>
+</div>
+
+NPM Package: https://www.npmjs.com/package/magic-wormhole-napi
+
 This is a Node.js native addon for [Magic Wormhole](https://github.com/magic-wormhole/magic-wormhole.rs.git)
 
-The original implementation is in Rust, [napi-rs](https://napi.rs/) was used to create the Node.js native addon.
+The original implementation is in Rust based on [magic-wormhole.rs](https://github.com/magic-wormhole/magic-wormhole.rs), [napi-rs](https://napi.rs/) was used to create the Node.js native addon.
 
 This project is still under early development, the APIs support the most basic functionalities of Magic Wormhole.
 
@@ -45,6 +54,14 @@ await receive(
 );
 ```
 
+## Development
+
+```bash
+git clone https://github.com/CrossCopy/magic-wormhole-napi --recursive # there is a submodule required to build
+yarn        # install dependencies
+yarn build
+```
+
 ## Example
 
 See [./example](./example) for more details. This is an example that turns the napi library into an CLI.
@@ -52,6 +69,8 @@ See [./example](./example) for more details. This is an example that turns the n
 There is a [sent.ts](./example/send.ts) and [receive.ts](./example/receive.ts) example.
 
 ```bash
+cd example
+bun install
 bun send.ts ~/Desktop/video.mp4
 bun receive.ts 1-nice-idea
 ```
